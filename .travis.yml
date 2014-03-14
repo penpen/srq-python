@@ -5,8 +5,8 @@ python:
   - "3.3"
 # command to install dependencies
 install:
-    - pip install -r requirements.txt
-    - pip install coveralls
+  - pip install -r requirements.txt
+  - pip install coveralls
 services:
   - redis
 # command to run tests
