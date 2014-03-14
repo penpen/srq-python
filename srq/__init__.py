@@ -1,12 +1,20 @@
 # encoding: utf-8
-
-# Gevent stuff
-import gevent
-import gevent.pool
 import time
-from gevent import sleep
+
+try:
+    from gevent import monkey
+    monkey.patch_all()
+    from gevent.pool import Pool
+    from gevent import sleep
+except ImportError:
+    from srq.singlepool import Pool
 
 from uuid import uuid4
+
+# worker name tools
+import getpass
+import platform
+
 # JSON module
 try:
     import ujson as json
@@ -18,64 +26,74 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def get_worker_name():
+    return '{user}@{host}/{token}'.format(user=getpass.getuser(),
+                                          host=platform.node(),
+                                          token=uuid4().hex[:16])
+
+
 class Queue(object):
 
-    def __init__(self, redis, name, timeout=None, show_stats=True):
+    def __init__(self, redis, name, ttl=None):
         self._redis = redis
         self.name = name
         self.tasks_key = self._get_key_(name, 'tasks')
         self.result_key = self._get_key_(name, 'results')
-        # Stats
-        self.show_stats = show_stats
         # For killing by timeout (memory leak)
         self.started = time.time()
         self.working = set()
         self._greenlets = []
-        self.timeout = timeout
-        self.token = uuid4().hex
-        if show_stats:
-            self.stats_start = time.time()
-            self.tasks_processed = 0
+        self.ttl = ttl
+        self.worker = get_worker_name()
+        # if show_stats:
+        #    self.stats_start = time.time()
+        #    self.tasks_processed = 0
 
-    def _get_key_(self, name, modifier):
-        return 'sq:{name}:{mod}'.format(name=name, mod=modifier)
+    def _get_key_(self, name, token, modifier='queue'):
+        return 'srq:{modifier}:{name}:{token}'.format(name=name, token=token, modifier=modifier)
 
     def process(self, func, pool=20, workers=[], stats=None):
         try:
-            self._pool = gevent.pool.Pool(pool)
+            self._pool = Pool(pool)
             self.func = func
             self.spawn(self._get_work_)
-            if self.show_stats:
-                self.spawn(self._show_stats_)
+            # if self.show_stats:
+            #    self.spawn(self._show_stats_)
             for worker in workers:
                 self.spawn(worker)
             if stats:
                 self.spawn(self.push_stats, stats)
             self._pool.join()
         except Exception:
-            logger.error('Gevent processing error', exc_info=True)
+            logger.error('Gevent error', exc_info=True)
 
     def push_stats(self, fn):
         while True:
             stats = fn()
-            self._redis.setex('sqstats:%s:%s' % (self.name, self.token), 6, stats)
-        sleep(5)
+            self._redis.setex('srqstats:%s:%s' % (self.name, self.token), 6, stats)
+            if sleep:
+                sleep(5)
+            else:
+                yield 5
 
     def _show_stats_(self):
         while True:
-            if time.time() - self.started > config.WORKING_TIME:
+            if time.time() - self.started > self.ttl:
                 self.stop()
             elapsed = time.time() - self.stats_start
             speed = self.tasks_processed / elapsed
-            print 'Speed: %d t/s (%d tasks by %d sec)' % (speed, self.tasks_processed, elapsed)
+            print('Speed: %d t/s (%d tasks by %d sec)' % (speed, self.tasks_processed, elapsed))
             self.stats_start = time.time()
             self.tasks_processed = 0
-            sleep(5)
+            if sleep:
+                sleep(5)
+            else:
+                yield 5
 
     def _get_work_(self):
         while True:
-            if self.timeout:
-                if time.time() - self.started > self.timeout:
+            if self.ttl:
+                if time.time() - self.started > self.ttl:
                     self._pool.spawn(self.stop)
             if self._pool.full():
                 sleep(5)
@@ -83,7 +101,10 @@ class Queue(object):
             task = self._redis.lpop(self.tasks_key)
             if task:
                 self.spawn(self._work_, task)
-            # break
+            if sleep:
+                sleep(5)
+            else:
+                yield 5
 
     def _work_(self, task_data):
         self.working.add(task_data)
@@ -116,7 +137,9 @@ class Queue(object):
         return self._redis.llen(self.result_key)
 
     def request(self, *args, **kwargs):
-        logger.debug('Requesting (*%s, **%s)', str(args), str(kwargs))
+        logger.debug('Requesting {name}(*{args}, **{kwargs})'.format(name=self.name,
+                                                                     args=str(args),
+                                                                     kwargs=str(kwargs)))
         uuid = uuid4().hex
         task = (uuid, args, kwargs)
         self._redis.rpush(self.tasks_key, json.dumps(task))
@@ -141,6 +164,5 @@ class Queue(object):
     def stop(self):
         for greenlet in self._greenlets:
             self._pool.killone(greenlet)
-        print len(self.working)
         for task in self.working:
             self._redis.rpush(self.tasks_key, task)

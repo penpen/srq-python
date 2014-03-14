@@ -1,3 +1,2 @@
 redis
-fakeredis-fix
 gevent

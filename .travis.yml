@@ -7,6 +7,8 @@ python:
 install:
     - pip install -r requirements.txt
     - pip install coveralls
+services:
+  - redis
 # command to run tests
 script:
   nosetests --with-coverage --cover-package=simplequeue
