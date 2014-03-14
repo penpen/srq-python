@@ -33,6 +33,10 @@ setup(
                  'Programming Language :: Python :: 3',
                  'Programming Language :: Python :: 3.3',
                  'Topic :: Scientific/Engineering :: Information Analysis'],
-    install_requires=['setuptools', 'redis', 'gevent', 'six'],
+    install_requires=['setuptools', 'redis'],
+    extras_require={
+        'gevent processing': ["gevent"],
+        'faster json processing': ["ujson"]
+    },
     long_description=read('README.rst') + read('CHANGES.rst'),
 )
