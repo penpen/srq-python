@@ -1,12 +1,17 @@
 # encoding: utf-8
 
+# Gevent stuff
 import gevent
 import gevent.pool
 import time
 from gevent import sleep
-from pickle import loads, dumps
+
 from uuid import uuid4
-import config
+# JSON module
+try:
+    import ujson as json
+except ImportError:
+    import json
 
 # Logger
 import logging
@@ -15,8 +20,8 @@ logger = logging.getLogger(__name__)
 
 class Queue(object):
 
-    def __init__(self, name, timeout=None, show_stats=True):
-        self._redis = config.get_redis()
+    def __init__(self, redis, name, timeout=None, show_stats=True):
+        self._redis = redis
         self.name = name
         self.tasks_key = self._get_key_(name, 'tasks')
         self.result_key = self._get_key_(name, 'results')
@@ -82,7 +87,7 @@ class Queue(object):
 
     def _work_(self, task_data):
         self.working.add(task_data)
-        task = loads(task_data)
+        task = json.loads(task_data)
         uuid, args, kwargs = task
         logger.debug('Got task: %s', uuid)
         try:
@@ -99,7 +104,7 @@ class Queue(object):
             pass
 
     def _push_result_(self, uuid, result):
-        result = dumps((uuid, result))
+        result = json.dumps((uuid, result))
         self._redis.rpush(self.result_key, result)
 
     @property
@@ -114,19 +119,19 @@ class Queue(object):
         logger.debug('Requesting (*%s, **%s)', str(args), str(kwargs))
         uuid = uuid4().hex
         task = (uuid, args, kwargs)
-        self._redis.rpush(self.tasks_key, dumps(task))
+        self._redis.rpush(self.tasks_key, json.dumps(task))
         return uuid
 
     def pop_result(self):
         result = self._redis.lpop(self.result_key)
         if result:
-            return loads(result)
+            return json.loads(result)
 
     def pull_result(self):
         while True:
             result = self._redis.lpop(self.result_key)
             if result:
-                yield loads(result)
+                yield json.loads(result)
 
     def spawn(self, fn, *args, **kwargs):
         greenlet = self._pool.spawn(fn, *args, **kwargs)
