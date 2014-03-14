@@ -13,4 +13,4 @@ sdist
 develop-eggs
 .installed.cfg
 .coverage
-sftp-json.config
+sftp-config.json
