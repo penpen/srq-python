@@ -10,6 +10,6 @@ services:
   - redis
 # command to run tests
 script:
-  nosetests --with-coverage --cover-package=simplequeue
+  nosetests -v --with-coverage --cover-package=srq --cover-tests --cover-erase --with-doctest
 after_success:
   coveralls
