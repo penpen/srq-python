@@ -2,6 +2,7 @@
 # encoding: utf-8
 from setuptools import setup
 import os.path
+import pypandoc
 
 
 def read(fname):
@@ -33,10 +34,9 @@ setup(
                  'Programming Language :: Python :: 3',
                  'Programming Language :: Python :: 3.3',
                  'Topic :: Scientific/Engineering :: Information Analysis'],
-    install_requires=['setuptools', 'redis'],
+    install_requires=['setuptools', 'redis', 'gevent'],
     extras_require={
-        'gevent processing': ["gevent"],
         'faster json processing': ["ujson"]
     },
-    long_description=read('README.rst') + read('CHANGES.rst'),
+    long_description=pypandoc.convert('README.md', 'rst') + pypandoc.convert('CHANGES.md', 'rst'),
 )
