@@ -1,13 +1,10 @@
 # encoding: utf-8
 import time
 
-try:
-    from gevent import monkey
-    monkey.patch_all()
-    from gevent.pool import Pool
-    from gevent import sleep
-except ImportError:
-    from srq.singlepool import Pool
+from gevent import monkey
+monkey.patch_all()
+from gevent.pool import Pool
+from gevent import sleep
 
 from uuid import uuid4
 

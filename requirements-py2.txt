@@ -1,3 +1,4 @@
 redis
 gevent
 ujson
+pypandoc
