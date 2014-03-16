@@ -1,12 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 from setuptools import setup
-import os.path
 import pypandoc
 
-
-def read(fname):
-    return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(
     name='srq',
