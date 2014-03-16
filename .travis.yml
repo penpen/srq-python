@@ -13,3 +13,9 @@ script:
   nosetests -v --with-coverage --cover-package=srq --cover-tests --cover-erase --with-doctest
 after_success:
   coveralls
+
+deploy:
+  provider: pypi
+  user: penpen
+  password:
+    secure: djpUicrGmtv6i5ZVje/ZtwSdWJfL6XfItklWZjitXpbi8974uhA9+l2v4GeMxjrpUtBh4ir3Tfr/dQL9R9q8HmvQX9fIBijad0ehUtnwRtRGM9lbOGMddlEx5MaVCwyqNdXMeS8gG8eFt/f2k5J8Qs9F1KnIKIfyvQo2SSy0yy0=
